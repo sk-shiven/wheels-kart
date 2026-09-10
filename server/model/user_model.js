@@ -24,7 +24,7 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: true, 
         unique: true,
-        match: [/^(\()?\d{3}(\))?(-|\s)?\d{3}(-|\s)\d{4}$/, 'Please enter a valid phone number']
+        match: [/^(\+?\d{1,3}[- ]?)?(\()?\d{3}(\))?[-.\s]?\d{3}[-.\s]?\d{4}$/, 'Please enter a valid phone number']
     }
 }, {timestamps: true})
 
