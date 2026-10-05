@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import cookieParser from 'cookie-parser';
 
 import userRoutes from './routes/user_routes.js';
+import productRoutes from './routes/product_routes.js';
 
 dotenv.config()
 const app = express();
@@ -12,6 +13,7 @@ const port = process.env.port;
 app.use(express.json());
 app.use(cookieParser());
 app.use('/user', userRoutes);
+app.use('/products', productRoutes);
 
 app.listen(port, () => {
     console.log(`Server started on port: ${port}`);

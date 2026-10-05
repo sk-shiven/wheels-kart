@@ -1,9 +1,21 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
 
 const Register = () => {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        await api.get('/getMe');
+        navigate('/home');
+      } catch (err) {
+        // Not logged in
+      }
+    };
+    checkAuth();
+  }, [navigate]);
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',

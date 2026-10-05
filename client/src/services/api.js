@@ -5,4 +5,9 @@ const api = axios.create({
   withCredentials: true,
 });
 
+export const productsApi = axios.create({
+  baseURL: '/api/products',
+  withCredentials: true,
+});
+
 export default api;

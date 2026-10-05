@@ -3,6 +3,8 @@ import Register from './pages/Register';
 import Login from './pages/Login';
 import Home from './pages/Home';
 
+import ProductDetails from './pages/productDetails';
+
 function App() {
   return (
     <Router>
@@ -10,6 +12,7 @@ function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
         <Route path="/home" element={<Home />} />
+        <Route path="/products/:id" element={<ProductDetails />} />
         <Route path="/" element={<Navigate to="/home" replace />} />
       </Routes>
     </Router>
