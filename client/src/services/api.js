@@ -10,4 +10,9 @@ export const productsApi = axios.create({
   withCredentials: true,
 });
 
+export const wishlistApi = axios.create({
+  baseURL: '/api/wishlist',
+  withCredentials: true,
+});
+
 export default api;

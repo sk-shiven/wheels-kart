@@ -5,6 +5,7 @@ import cookieParser from 'cookie-parser';
 
 import userRoutes from './routes/user_routes.js';
 import productRoutes from './routes/product_routes.js';
+import wishlistRoutes from './routes/wishlist_routes.js';
 
 dotenv.config()
 const app = express();
@@ -14,6 +15,7 @@ app.use(express.json());
 app.use(cookieParser());
 app.use('/user', userRoutes);
 app.use('/products', productRoutes);
+app.use('/wishlist', wishlistRoutes);
 
 app.listen(port, () => {
     console.log(`Server started on port: ${port}`);

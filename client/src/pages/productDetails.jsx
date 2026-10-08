@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
-import { productsApi } from '../services/api';
+import { productsApi, wishlistApi } from '../services/api';
 
 const ProductDetails = () => {
   const { id } = useParams();
@@ -9,6 +9,7 @@ const ProductDetails = () => {
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [wishlistState, setWishlistState] = useState('default');
 
   useEffect(() => {
     const fetchProductDetails = async () => {
@@ -31,6 +32,24 @@ const ProductDetails = () => {
 
     fetchProductDetails();
   }, [id]);
+
+  const handleAddToWishlist = async () => {
+    if (wishlistState === 'saving' || wishlistState === 'added') return;
+
+    setWishlistState('saving');
+    try {
+      await wishlistApi.post(`/${id}`);
+      setWishlistState('added');
+    } catch (err) {
+      console.error('Failed to add to wishlist', err);
+      if (err.response?.status === 409) {
+        setWishlistState('added');
+      } else {
+        setWishlistState('error');
+        alert(err.response?.data?.message || 'Failed to add to wishlist');
+      }
+    }
+  };
 
   if (loading) {
     return (
@@ -101,17 +120,28 @@ const ProductDetails = () => {
                 </span>
               </div>
               
-              <button 
-                className={`w-full py-4 px-8 border border-transparent text-lg font-bold rounded-md text-white shadow-sm transition-colors ${
-                  product.stock > 0 
-                    ? 'bg-indigo-600 hover:bg-indigo-700 focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500' 
-                    : 'bg-gray-400 cursor-not-allowed'
-                }`}
-                disabled={product.stock === 0}
-                onClick={() => alert('Added to cart! (UI Only)')}
-              >
-                {product.stock > 0 ? 'Add to Cart' : 'Out of Stock'}
-              </button>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <button 
+                  className={`flex-1 py-4 px-8 border border-transparent text-lg font-bold rounded-md text-white shadow-sm transition-colors ${
+                    product.stock > 0 
+                      ? 'bg-indigo-600 hover:bg-indigo-700 focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500' 
+                      : 'bg-gray-400 cursor-not-allowed'
+                  }`}
+                  disabled={product.stock === 0}
+                  onClick={() => alert('Added to cart! (UI Only)')}
+                >
+                  {product.stock > 0 ? 'Add to Cart' : 'Out of Stock'}
+                </button>
+                <button
+                  onClick={handleAddToWishlist}
+                  disabled={wishlistState === 'saving' || wishlistState === 'added'}
+                  className="flex-1 py-4 px-8 border border-gray-300 bg-white text-lg font-bold text-gray-700 rounded-md hover:bg-gray-50 transition-colors flex justify-center items-center"
+                >
+                  {wishlistState === 'saving' ? '⏳ Saving...' :
+                   wishlistState === 'added' ? '♥ Added to Wishlist' :
+                   '♡ Add to Wishlist'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

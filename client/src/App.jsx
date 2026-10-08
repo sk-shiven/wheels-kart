@@ -2,8 +2,8 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Register from './pages/Register';
 import Login from './pages/Login';
 import Home from './pages/Home';
-
 import ProductDetails from './pages/productDetails';
+import Wishlist from './pages/Wishlist';
 
 function App() {
   return (
@@ -13,6 +13,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/home" element={<Home />} />
         <Route path="/products/:id" element={<ProductDetails />} />
+        <Route path="/wishlist" element={<Wishlist />} />
         <Route path="/" element={<Navigate to="/home" replace />} />
       </Routes>
     </Router>

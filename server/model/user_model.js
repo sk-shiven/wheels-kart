@@ -22,10 +22,11 @@ const userSchema = new mongoose.Schema({
     },
     phone: {
         type: String,
-        required: true, 
+        required: true,
         unique: true,
         match: [/^(\+?\d{1,3}[- ]?)?(\()?\d{3}(\))?[-.\s]?\d{3}[-.\s]?\d{4}$/, 'Please enter a valid phone number']
-    }
-}, {timestamps: true})
+    },
+    wishlist: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],
+}, { timestamps: true })
 
 export default mongoose.model('User', userSchema);

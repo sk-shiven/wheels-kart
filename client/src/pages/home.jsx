@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
-import api, { productsApi } from '../services/api';
+import api, { productsApi, wishlistApi } from '../services/api';
 
 const Home = () => {
   const navigate = useNavigate();
@@ -11,6 +11,7 @@ const Home = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [wishlistStates, setWishlistStates] = useState({});
 
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('All');
@@ -57,6 +58,25 @@ const Home = () => {
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     fetchProducts();
+  };
+
+  const handleAddToWishlist = async (e, productId) => {
+    e.stopPropagation();
+    if (wishlistStates[productId] === 'saving' || wishlistStates[productId] === 'added') return;
+
+    setWishlistStates((prev) => ({ ...prev, [productId]: 'saving' }));
+    try {
+      await wishlistApi.post(`/${productId}`);
+      setWishlistStates((prev) => ({ ...prev, [productId]: 'added' }));
+    } catch (err) {
+      console.error('Failed to add to wishlist', err);
+      if (err.response?.status === 409) {
+        setWishlistStates((prev) => ({ ...prev, [productId]: 'added' }));
+      } else {
+        setWishlistStates((prev) => ({ ...prev, [productId]: 'error' }));
+        alert(err.response?.data?.message || 'Failed to add to wishlist');
+      }
+    }
   };
 
   if (redirectToLogin) {
@@ -138,12 +158,23 @@ const Home = () => {
                         {product.stock > 0 ? `${product.stock} in stock` : 'Out of stock'}
                       </span>
                     </div>
-                    <button
-                      onClick={() => navigate(`/products/${product._id}`)}
-                      className="w-full bg-indigo-50 text-indigo-700 hover:bg-indigo-100 py-2 px-4 rounded-md font-medium transition-colors"
-                    >
-                      View Details
-                    </button>
+                    <div className="flex flex-col gap-2">
+                      <button
+                        onClick={() => navigate(`/products/${product._id}`)}
+                        className="w-full bg-indigo-50 text-indigo-700 hover:bg-indigo-100 py-2 px-4 rounded-md font-medium transition-colors"
+                      >
+                        View Details
+                      </button>
+                      <button
+                        onClick={(e) => handleAddToWishlist(e, product._id)}
+                        disabled={wishlistStates[product._id] === 'saving' || wishlistStates[product._id] === 'added'}
+                        className="w-full border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 py-2 px-4 rounded-md font-medium transition-colors"
+                      >
+                        {wishlistStates[product._id] === 'saving' ? '⏳ Saving...' :
+                         wishlistStates[product._id] === 'added' ? '♥ Added to Wishlist' :
+                         '♡ Add to Wishlist'}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
