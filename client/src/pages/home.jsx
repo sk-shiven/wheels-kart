@@ -1,27 +1,27 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
-import api, { productsApi, wishlistApi } from '../services/api';
+import api, { productsApi } from '../services/api';
 
 const Home = () => {
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [redirectToLogin, setRedirectToLogin] = useState(false);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [wishlistStates, setWishlistStates] = useState({});
 
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('All');
+  const [sort, setSort] = useState('');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   // Auth guard — redirect to /login if not authenticated
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await api.get('/getMe');
-        setUser(response.data.user);
+        await api.get('/getMe?_t=' + Date.now());
         setAuthLoading(false);
       } catch (err) {
         console.error('Not authenticated', err);
@@ -31,12 +31,6 @@ const Home = () => {
     checkAuth();
   }, []);
 
-  useEffect(() => {
-    if (!authLoading) {
-      fetchProducts();
-    }
-  }, [category, authLoading]);
-
   const fetchProducts = async (searchQuery = search) => {
     setLoading(true);
     setError(null);
@@ -44,9 +38,16 @@ const Home = () => {
       let url = '/?';
       if (searchQuery) url += `search=${searchQuery}&`;
       if (category !== 'All') url += `category=${category}&`;
+      if (sort) url += `sort=${sort}&`;
+      if (page) url += `page=${page}&`;
 
       const response = await productsApi.get(url);
       setProducts(response.data.products);
+      if (response.data.pagination) {
+        setTotalPages(response.data.pagination.totalPages);
+      } else {
+        setTotalPages(1);
+      }
     } catch (err) {
       console.error('Failed to fetch products', err);
       setError('Something went wrong while loading products.');
@@ -55,28 +56,18 @@ const Home = () => {
     }
   };
 
+  useEffect(() => {
+    if (!authLoading) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      fetchProducts();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [category, sort, page, authLoading]);
+
   const handleSearchSubmit = (e) => {
     e.preventDefault();
+    setPage(1); // Reset to first page on new search
     fetchProducts();
-  };
-
-  const handleAddToWishlist = async (e, productId) => {
-    e.stopPropagation();
-    if (wishlistStates[productId] === 'saving' || wishlistStates[productId] === 'added') return;
-
-    setWishlistStates((prev) => ({ ...prev, [productId]: 'saving' }));
-    try {
-      await wishlistApi.post(`/${productId}`);
-      setWishlistStates((prev) => ({ ...prev, [productId]: 'added' }));
-    } catch (err) {
-      console.error('Failed to add to wishlist', err);
-      if (err.response?.status === 409) {
-        setWishlistStates((prev) => ({ ...prev, [productId]: 'added' }));
-      } else {
-        setWishlistStates((prev) => ({ ...prev, [productId]: 'error' }));
-        alert(err.response?.data?.message || 'Failed to add to wishlist');
-      }
-    }
   };
 
   if (redirectToLogin) {
@@ -109,12 +100,23 @@ const Home = () => {
             />
             <select
               value={category}
-              onChange={(e) => setCategory(e.target.value)}
+              onChange={(e) => { setCategory(e.target.value); setPage(1); }}
               className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block sm:text-sm border-gray-300 rounded-md px-4 py-2 border bg-white"
             >
               <option value="All">All Categories</option>
               <option value="Cars">Cars</option>
               <option value="Toys">Toys</option>
+            </select>
+            <select
+              value={sort}
+              onChange={(e) => { setSort(e.target.value); setPage(1); }}
+              className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block sm:text-sm border-gray-300 rounded-md px-4 py-2 border bg-white"
+            >
+              <option value="">Sort By</option>
+              <option value="name_asc">Name (A-Z)</option>
+              <option value="name_desc">Name (Z-A)</option>
+              <option value="price_asc">Price (Low to High)</option>
+              <option value="price_desc">Price (High to Low)</option>
             </select>
             <button type="submit" className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700">
               Search
@@ -136,49 +138,64 @@ const Home = () => {
             <p className="mt-1 text-sm text-gray-500">Try adjusting your search or filter to find what you're looking for.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {products.map((product) => (
-              <div key={product._id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300 flex flex-col">
-                <div className="h-48 overflow-hidden bg-gray-200">
-                  <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
-                </div>
-                <div className="p-4 flex-1 flex flex-col justify-between">
-                  <div>
-                    <span className="inline-block px-2 py-1 text-xs font-semibold text-indigo-600 bg-indigo-100 rounded-full mb-2">
-                      {product.category}
-                    </span>
-                    <h3 className="text-lg font-bold text-gray-900 mb-1">{product.name}</h3>
-                    <p className="text-gray-500 text-sm line-clamp-2 mb-3">{product.description}</p>
+          <div className="space-y-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {products.map((product) => (
+                <div key={product._id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300 flex flex-col">
+                  <div className="h-48 overflow-hidden bg-gray-200">
+                    <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
                   </div>
-
-                  <div className="mt-auto">
-                    <div className="flex justify-between items-center mb-4">
-                      <span className="text-xl font-extrabold text-gray-900">${product.price.toFixed(2)}</span>
-                      <span className={`text-sm font-medium ${product.stock > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {product.stock > 0 ? `${product.stock} in stock` : 'Out of stock'}
+                  <div className="p-4 flex-1 flex flex-col justify-between">
+                    <div>
+                      <span className="inline-block px-2 py-1 text-xs font-semibold text-indigo-600 bg-indigo-100 rounded-full mb-2">
+                        {product.category}
                       </span>
+                      <h3 className="text-lg font-bold text-gray-900 mb-1">{product.name}</h3>
+                      <p className="text-gray-500 text-sm line-clamp-2 mb-3">{product.description}</p>
                     </div>
-                    <div className="flex flex-col gap-2">
-                      <button
-                        onClick={() => navigate(`/products/${product._id}`)}
-                        className="w-full bg-indigo-50 text-indigo-700 hover:bg-indigo-100 py-2 px-4 rounded-md font-medium transition-colors"
-                      >
-                        View Details
-                      </button>
-                      <button
-                        onClick={(e) => handleAddToWishlist(e, product._id)}
-                        disabled={wishlistStates[product._id] === 'saving' || wishlistStates[product._id] === 'added'}
-                        className="w-full border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 py-2 px-4 rounded-md font-medium transition-colors"
-                      >
-                        {wishlistStates[product._id] === 'saving' ? '⏳ Saving...' :
-                         wishlistStates[product._id] === 'added' ? '♥ Added to Wishlist' :
-                         '♡ Add to Wishlist'}
-                      </button>
+
+                    <div className="mt-auto">
+                      <div className="flex justify-between items-center mb-4">
+                        <span className="text-xl font-extrabold text-gray-900">${product.price.toFixed(2)}</span>
+                        <span className={`text-sm font-medium ${product.stock > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {product.stock > 0 ? `${product.stock} in stock` : 'Out of stock'}
+                        </span>
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <button
+                          onClick={() => navigate(`/products/${product._id}`)}
+                          className="w-full bg-indigo-50 text-indigo-700 hover:bg-indigo-100 py-2 px-4 rounded-md font-medium transition-colors"
+                        >
+                          View Details
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
+              ))}
+            </div>
+
+            {totalPages > 1 && (
+              <div className="flex justify-center items-center gap-4 pt-8">
+                <button
+                  onClick={() => setPage(Math.max(1, page - 1))}
+                  disabled={page === 1}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+                >
+                  Previous
+                </button>
+                <span className="text-sm text-gray-700 font-medium">
+                  Page {page} of {totalPages}
+                </span>
+                <button
+                  onClick={() => setPage(Math.min(totalPages, page + 1))}
+                  disabled={page === totalPages}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
               </div>
-            ))}
+            )}
           </div>
         )}
       </div>

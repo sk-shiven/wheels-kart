@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import { wishlistApi } from '../services/api';
@@ -9,7 +9,7 @@ const Wishlist = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
-  const fetchWishlist = async () => {
+  const fetchWishlist = useCallback(async () => {
     setLoading(true);
     setError(false);
     try {
@@ -24,11 +24,12 @@ const Wishlist = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [navigate]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchWishlist();
-  }, []);
+  }, [fetchWishlist]);
 
   const handleRemove = async (productId) => {
     try {

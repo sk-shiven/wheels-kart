@@ -10,7 +10,7 @@ const Login = () => {
       try {
         await api.get('/getMe');
         navigate('/home');
-      } catch (err) {
+      } catch {
         // Not logged in
       }
     };

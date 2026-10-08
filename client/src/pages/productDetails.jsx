@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
-import { productsApi, wishlistApi } from '../services/api';
+import api, { productsApi, wishlistApi } from '../services/api';
 
 const ProductDetails = () => {
   const { id } = useParams();
@@ -30,8 +30,28 @@ const ProductDetails = () => {
       }
     };
 
-    fetchProductDetails();
-  }, [id]);
+    const fetchAuthAndCheckWishlist = async () => {
+      try {
+        await api.get('/getMe?_t=' + Date.now()); // Verify auth
+
+        const wishlistRes = await wishlistApi.get('/');
+        const userWishlist = wishlistRes.data.wishlist || [];
+        
+        // Match by product name instead of ID, as database may have seeded duplicate objects
+        if (product && userWishlist.some(item => item.name === product.name)) {
+          setWishlistState('added');
+        }
+      } catch (err) {
+        console.error('Failed to get auth/wishlist status', err);
+      }
+    };
+
+    if (!product) {
+      fetchProductDetails();
+    } else {
+      fetchAuthAndCheckWishlist();
+    }
+  }, [id, product]);
 
   const handleAddToWishlist = async () => {
     if (wishlistState === 'saving' || wishlistState === 'added') return;
@@ -138,7 +158,7 @@ const ProductDetails = () => {
                   className="flex-1 py-4 px-8 border border-gray-300 bg-white text-lg font-bold text-gray-700 rounded-md hover:bg-gray-50 transition-colors flex justify-center items-center"
                 >
                   {wishlistState === 'saving' ? '⏳ Saving...' :
-                   wishlistState === 'added' ? '♥ Added to Wishlist' :
+                   wishlistState === 'added' ? '♥ Already added to wishlist' :
                    '♡ Add to Wishlist'}
                 </button>
               </div>
