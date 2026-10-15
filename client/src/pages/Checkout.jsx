@@ -7,7 +7,7 @@ import { loadRazorpayScript } from '../utils/razorpay';
 
 const Checkout = () => {
   const navigate = useNavigate();
-  const { cartItems, loading: cartLoading, subtotal, totalUnits, clearCartState } = useCart();
+  const { cartItems, loading: cartLoading, subtotal, totalUnits, clearCartState, fetchCart } = useCart();
 
   const [shippingAddress, setShippingAddress] = useState({
     fullName: '',
@@ -127,6 +127,7 @@ const Checkout = () => {
 
           if (verifyRes.data.success) {
             clearCartState();
+            fetchCart();
             navigate(`/orders/${shopKartOrderId}`);
             return;
           }
@@ -158,6 +159,7 @@ const Checkout = () => {
             if (verifyRes.data.success) {
               // Clear global cart state only after verified payment
               clearCartState();
+              fetchCart();
               navigate(`/orders/${shopKartOrderId}`);
             } else {
               setOrderError(verifyRes.data.message || 'Payment signature verification failed.');

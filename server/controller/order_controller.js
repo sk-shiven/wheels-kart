@@ -204,11 +204,7 @@ export const verifyPayment = async (req, res) => {
     }
 
     // Clear user cart
-    const user = await User.findById(userId);
-    if (user) {
-      user.cart = [];
-      await user.save();
-    }
+    await User.findByIdAndUpdate(userId, { $set: { cart: [] } });
 
     res.status(200).json({
       success: true,
