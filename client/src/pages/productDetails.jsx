@@ -2,14 +2,18 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import api, { productsApi, wishlistApi } from '../services/api';
+import { useCart } from '../context/CartContext';
 
 const ProductDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { addToCart, cartItems } = useCart();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [wishlistState, setWishlistState] = useState('default');
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
+  const [cartFeedback, setCartFeedback] = useState(null);
 
   useEffect(() => {
     const fetchProductDetails = async () => {
@@ -140,22 +144,53 @@ const ProductDetails = () => {
                 </span>
               </div>
               
+              {cartFeedback && (
+                <div
+                  className={`mb-4 p-3 rounded-md text-sm font-medium ${
+                    cartFeedback.type === 'success'
+                      ? 'bg-green-50 text-green-800 border border-green-200'
+                      : 'bg-red-50 text-red-800 border border-red-200'
+                  }`}
+                >
+                  {cartFeedback.message}
+                </div>
+              )}
+
               <div className="flex flex-col sm:flex-row gap-4">
                 <button 
-                  className={`flex-1 py-4 px-8 border border-transparent text-lg font-bold rounded-md text-white shadow-sm transition-colors ${
+                  className={`flex-1 py-4 px-8 border border-transparent text-lg font-bold rounded-md text-white shadow-sm transition-colors cursor-pointer ${
                     product.stock > 0 
-                      ? 'bg-indigo-600 hover:bg-indigo-700 focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500' 
+                      ? isAddingToCart
+                        ? 'bg-indigo-400 cursor-wait'
+                        : 'bg-indigo-600 hover:bg-indigo-700 focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500' 
                       : 'bg-gray-400 cursor-not-allowed'
                   }`}
-                  disabled={product.stock === 0}
-                  onClick={() => alert('Added to cart! (UI Only)')}
+                  disabled={product.stock === 0 || isAddingToCart}
+                  onClick={async () => {
+                    setIsAddingToCart(true);
+                    setCartFeedback(null);
+                    const res = await addToCart(product._id);
+                    if (res.success) {
+                      setCartFeedback({ type: 'success', message: `${product.name} added to cart!` });
+                    } else {
+                      setCartFeedback({ type: 'error', message: res.message });
+                    }
+                    setIsAddingToCart(false);
+                    setTimeout(() => setCartFeedback(null), 3000);
+                  }}
                 >
-                  {product.stock > 0 ? 'Add to Cart' : 'Out of Stock'}
+                  {product.stock === 0
+                    ? 'Out of Stock'
+                    : isAddingToCart
+                    ? 'Adding...'
+                    : cartItems.some(i => i.product?._id === product._id)
+                    ? 'Add Another'
+                    : 'Add to Cart'}
                 </button>
                 <button
                   onClick={handleAddToWishlist}
                   disabled={wishlistState === 'saving' || wishlistState === 'added'}
-                  className="flex-1 py-4 px-8 border border-gray-300 bg-white text-lg font-bold text-gray-700 rounded-md hover:bg-gray-50 transition-colors flex justify-center items-center"
+                  className="flex-1 py-4 px-8 border border-gray-300 bg-white text-lg font-bold text-gray-700 rounded-md hover:bg-gray-50 transition-colors flex justify-center items-center cursor-pointer"
                 >
                   {wishlistState === 'saving' ? '⏳ Saving...' :
                    wishlistState === 'added' ? '♥ Already added to wishlist' :

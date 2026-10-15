@@ -15,4 +15,14 @@ export const wishlistApi = axios.create({
   withCredentials: true,
 });
 
+export const cartApi = axios.create({
+  baseURL: '/api/cart',
+  withCredentials: true,
+});
+
+export const ordersApi = axios.create({
+  baseURL: '/api/orders',
+  withCredentials: true,
+});
+
 export default api;

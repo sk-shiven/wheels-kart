@@ -2,9 +2,13 @@ import { useEffect, useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import api, { productsApi } from '../services/api';
+import { useCart } from '../context/CartContext';
 
 const Home = () => {
   const navigate = useNavigate();
+  const { addToCart, cartItems } = useCart();
+  const [addingCartId, setAddingCartId] = useState(null);
+  const [cartAlert, setCartAlert] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [redirectToLogin, setRedirectToLogin] = useState(false);
   const [products, setProducts] = useState([]);
@@ -87,6 +91,20 @@ const Home = () => {
       <Navbar />
 
       <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        {cartAlert && (
+          <div
+            className={`mb-6 p-4 rounded-lg font-medium text-sm flex items-center justify-between shadow-sm ${
+              cartAlert.type === 'success'
+                ? 'bg-green-50 border border-green-200 text-green-800'
+                : 'bg-red-50 border border-red-200 text-red-800'
+            }`}
+          >
+            <span>{cartAlert.message}</span>
+            <button onClick={() => setCartAlert(null)} className="font-bold text-gray-500 hover:text-gray-700">
+              &times;
+            </button>
+          </div>
+        )}
         <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
           <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Discover Toys & Cars</h1>
 
@@ -163,8 +181,36 @@ const Home = () => {
                       </div>
                       <div className="flex flex-col gap-2">
                         <button
+                          onClick={async () => {
+                            if (product.stock <= 0) return;
+                            setAddingCartId(product._id);
+                            const res = await addToCart(product._id);
+                            if (res.success) {
+                              setCartAlert({ type: 'success', message: `${product.name} added to cart!` });
+                            } else {
+                              setCartAlert({ type: 'error', message: res.message });
+                            }
+                            setAddingCartId(null);
+                            setTimeout(() => setCartAlert(null), 3000);
+                          }}
+                          disabled={product.stock <= 0 || addingCartId === product._id}
+                          className={`w-full py-2 px-4 rounded-md font-medium text-sm transition shadow-sm cursor-pointer ${
+                            product.stock <= 0
+                              ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                              : addingCartId === product._id
+                              ? 'bg-indigo-400 text-white cursor-wait'
+                              : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                          }`}
+                        >
+                          {addingCartId === product._id
+                            ? 'Adding...'
+                            : cartItems.some(i => i.product?._id === product._id)
+                            ? 'Add Another'
+                            : 'Add to Cart'}
+                        </button>
+                        <button
                           onClick={() => navigate(`/products/${product._id}`)}
-                          className="w-full bg-indigo-50 text-indigo-700 hover:bg-indigo-100 py-2 px-4 rounded-md font-medium transition-colors"
+                          className="w-full bg-indigo-50 text-indigo-700 hover:bg-indigo-100 py-2 px-4 rounded-md font-medium text-sm transition-colors cursor-pointer"
                         >
                           View Details
                         </button>
