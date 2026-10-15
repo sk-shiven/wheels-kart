@@ -111,10 +111,16 @@ export const createPaymentOrder = async (req, res) => {
 
     await shopKartOrder.save();
 
-    // Create Razorpay Order in paise
+    // Validate minimum amount (minimum 100 paise = 1 INR for Razorpay)
     const amountInPaise = Math.round(calculatedTotal * 100);
-    let razorpayOrderId;
+    if (amountInPaise < 100) {
+      return res.status(400).json({
+        success: false,
+        message: 'Order amount must be at least 100 paise (₹1.00) to process payment.'
+      });
+    }
 
+    let razorpayOrderId;
     try {
       const rzpOrder = await razorpay.orders.create({
         amount: amountInPaise,
@@ -123,9 +129,12 @@ export const createPaymentOrder = async (req, res) => {
       });
       razorpayOrderId = rzpOrder.id;
     } catch (rzpErr) {
-      console.warn('Razorpay API error (using mock order ID for testing if test credentials):', rzpErr.message);
-      // Fallback in case of mock/unactivated sandbox keys
-      razorpayOrderId = `order_${shopKartOrder._id.toString().slice(-8)}_${Date.now()}`;
+      console.error('Razorpay API error creating order:', rzpErr);
+      const statusCode = rzpErr.statusCode === 401 ? 401 : 500;
+      return res.status(statusCode).json({
+        success: false,
+        message: rzpErr.error?.description || rzpErr.message || 'Failed to create payment order with Razorpay'
+      });
     }
 
     shopKartOrder.razorpayOrderId = razorpayOrderId;
@@ -134,10 +143,11 @@ export const createPaymentOrder = async (req, res) => {
     res.status(200).json({
       success: true,
       shopKartOrderId: shopKartOrder._id,
+      order_id: razorpayOrderId,
       razorpayOrderId: razorpayOrderId,
       amount: amountInPaise,
       currency: 'INR',
-      key: process.env.RAZORPAY_KEY_ID || 'rzp_test_placeholder'
+      key: process.env.RAZORPAY_KEY_ID
     });
   } catch (error) {
     console.error('createPaymentOrder error: ', error);
@@ -153,14 +163,18 @@ export const verifyPayment = async (req, res) => {
     const { shopKartOrderId, razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
     const userId = req.user._id;
 
-    if (!shopKartOrderId || !razorpay_payment_id) {
+    if (!razorpay_payment_id || !razorpay_signature || (!razorpay_order_id && !shopKartOrderId)) {
       return res.status(400).json({
         success: false,
-        message: 'Missing required payment verification details'
+        message: 'Missing required payment verification details (order_id, payment_id, or signature)'
       });
     }
 
-    const order = await Order.findById(shopKartOrderId);
+    const orderQuery = shopKartOrderId
+      ? { _id: shopKartOrderId }
+      : { razorpayOrderId: razorpay_order_id };
+
+    const order = await Order.findOne(orderQuery);
     if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
@@ -169,17 +183,23 @@ export const verifyPayment = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Unauthorized order access' });
     }
 
-    // Cryptographic signature verification
-    const secret = process.env.RAZORPAY_KEY_SECRET || 'shopkart_test_secret_456';
-    const body = order.razorpayOrderId + '|' + razorpay_payment_id;
+    // Cryptographic signature verification using HMAC-SHA256(order_id + "|" + payment_id, KEY_SECRET)
+    const secret = process.env.RAZORPAY_KEY_SECRET;
+    if (!secret) {
+      return res.status(500).json({
+        success: false,
+        message: 'Razorpay secret key is not configured on the server'
+      });
+    }
+
+    const orderIdToVerify = order.razorpayOrderId || razorpay_order_id;
+    const body = orderIdToVerify + '|' + razorpay_payment_id;
     const expectedSignature = crypto
       .createHmac('sha256', secret)
       .update(body)
       .digest('hex');
 
-    const isSignatureValid =
-      expectedSignature === razorpay_signature ||
-      razorpay_signature === 'simulated_test_signature';
+    const isSignatureValid = expectedSignature === razorpay_signature;
 
     if (!isSignatureValid) {
       order.paymentStatus = 'FAILED';

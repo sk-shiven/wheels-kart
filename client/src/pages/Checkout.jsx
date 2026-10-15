@@ -112,37 +112,25 @@ const Checkout = () => {
       const isScriptLoaded = await loadRazorpayScript();
 
       if (!isScriptLoaded || !window.Razorpay) {
-        // Fallback simulated payment prompt for offline or blocked environments
-        const proceedSimulated = window.confirm(
-          'Razorpay checkout script could not be loaded directly from the CDN (offline/adblocker active).\n\nProceed with Simulated Test Mode Payment for testing?'
+        setOrderError(
+          'Failed to load Razorpay SDK. Please check your internet connection or ad blocker and try again.'
         );
-
-        if (proceedSimulated) {
-          const verifyRes = await ordersApi.post('/verify-payment', {
-            shopKartOrderId,
-            razorpay_order_id: razorpayOrderId,
-            razorpay_payment_id: `pay_sim_${Date.now()}`,
-            razorpay_signature: 'simulated_test_signature'
-          });
-
-          if (verifyRes.data.success) {
-            clearCartState();
-            fetchCart();
-            navigate(`/orders/${shopKartOrderId}`);
-            return;
-          }
-        } else {
-          setOrderError('Payment cancelled. Your cart has been preserved.');
-          setIsSubmitting(false);
-          return;
-        }
+        setIsSubmitting(false);
+        return;
       }
 
-      // Step 3: Open Razorpay Test Mode Checkout
+      const razorpayKey = key || import.meta.env.VITE_RAZORPAY_KEY_ID;
+      if (!razorpayKey) {
+        setOrderError('Razorpay Key ID is not configured.');
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Step 3: Open Razorpay Checkout modal
       const options = {
-        key: key,
+        key: razorpayKey,
         amount: amount,
-        currency: currency,
+        currency: currency || 'INR',
         name: 'ShopKart',
         description: 'Complete your ShopKart order',
         order_id: razorpayOrderId,
